@@ -4,9 +4,10 @@
 
 # Usage: bpa-cloudstor-transfer.sh <folder-to-transfer>
 
-# Initial pseudocode for script
+# Internal script configuation
+VERSIONCHECK=${VERSIONCHECK:=1}
 
-# Need the following configuration information
+# Need the following configuration information from user
 # - User details
 # - App password
 
@@ -37,6 +38,18 @@ then
     warn "Install rclone as appropriate for your environment"
     exit 1
 fi
+
+# Check our rclone version, warn if out of date
+#Check for latest rclone version
+if [ ${VERSIONCHECK} -eq 1 ]; then
+        if [ "$(rclone version --check | grep -e 'yours\|latest' | sed 's/  */ /g' | cut -d' ' -f2 | uniq | wc -l)" -gt 1 ]; then
+                rclone version --check
+                warn "Upgrade rclone to latest version as appropriate for your environment"
+        else
+                info "rclone is latest version."
+        fi
+fi
+
 # Check we've got mail installed
 
 # (Re) generate rclone config
