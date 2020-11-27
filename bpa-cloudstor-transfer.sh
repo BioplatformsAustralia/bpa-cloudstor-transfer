@@ -30,6 +30,13 @@ function debug {
 # Check we've got config information
 
 # Check we've got rclone installed
+
+if ! command -v rclone &> /dev/null
+then
+    warn "rclone could not be found"
+    warn "Install rclone as appropriate for your environment"
+    exit 1
+fi
 # Check we've got mail installed
 
 # (Re) generate rclone config
