@@ -14,6 +14,19 @@
 # - Destination to share to (ie BPA CloudStor address)
 # - Notification email address (help@bioplatforms.com)
 
+# Logging functions
+function warn {
+	echo $1
+}
+
+function info {
+	echo $1
+}
+
+function debug {
+	echo $1
+}
+
 # Check we've got config information
 
 # Check we've got rclone installed
