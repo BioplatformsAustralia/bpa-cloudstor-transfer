@@ -82,7 +82,7 @@ if [ $# -ne 1 ]; then
 	exit 1
 fi
 
-# It should be a directory
+# Check argument is directory
 
 TRANSFER_FOLDER=$1
 
@@ -93,10 +93,16 @@ fi
 
 TRANSFER_NAME=`basename $TRANSFER_FOLDER`
 
-
-# Check argument is directory
-
 # Check directory is named correctly
+# In the format - 20201202_TESTPROJ_TESTFACILITY_ABCD1234
+# =~ operator is a bashism
+
+if [[ ! $TRANSFER_NAME =~ ^[0-9]{8}_[A-Za-z]+_[A-Za-z]+_[A-Za-z0-9]{8}$ ]]; then
+	usage "Directory must be named correctly <datestamp>_<project>_<facility>_<flowcell ID>"
+	exit 1
+else
+	debug "Directory $TRANSFER_NAME meets criteria"
+fi
 
 # Test if folder is present on CloudStor
 
