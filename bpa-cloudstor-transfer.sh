@@ -5,7 +5,7 @@
 # Usage: bpa-cloudstor-transfer.sh <folder-to-transfer>
 
 # Internal script configuation
-VERSIONCHECK=${VERSIONCHECK:=1}
+VERSIONCHECK="${VERSIONCHECK:=1}"
 
 # Need the following configuration information from user
 # - User details
@@ -25,7 +25,15 @@ function info {
 }
 
 function debug {
+	echo -n "DEBUG: "
 	echo $1
+}
+
+function usage {
+	echo $1
+	echo
+	echo "Usage: bpa-cloudstor-transfer.sh <directory>"
+	echo
 }
 
 # Check we've got config information
@@ -46,7 +54,7 @@ if [ ${VERSIONCHECK} -eq 1 ]; then
                 rclone version --check
                 warn "Upgrade rclone to latest version as appropriate for your environment"
         else
-                info "rclone is latest version."
+                debug "rclone is latest version."
         fi
 fi
 
