@@ -14,6 +14,8 @@ VERSIONCHECK="${VERSIONCHECK:=1}"
 # - Data age
 # - Destination to share to (ie BPA CloudStor address)
 # - Notification email address (help@bioplatforms.com)
+NOTIFY_EMAIL="${NOTIFY_EMAIL:=mark.tearle@qcif.edu.au}"
+SENDMAIL="${SENDMAIL:=/usr/sbin/sendmail}"
 
 # Logging functions
 function warn {
@@ -59,6 +61,15 @@ if [ ${VERSIONCHECK} -eq 1 ]; then
 fi
 
 # Check we've got mail installed
+if ! command -v $SENDMAIL &> /dev/null
+then
+    warn "sendmail not found"
+    warn "Install a mail transfer agent to provide sendmail as appropriate for your environment"
+    warn "For example: sstmp, msmtp"
+    exit 1
+else
+    debug "sendmail found"
+fi
 
 # (Re) generate rclone config
 
@@ -96,5 +107,20 @@ TRANSFER_NAME=`basename $TRANSFER_FOLDER`
 # Use owncloud API to share to BPA CloudStor address
 
 # Generate email to notification email address
+FILELIST=$(find $TRANSFER_FOLDER)
 
+$SENDMAIL $NOTIFY_EMAIL <<- END
+	To: Bioplatforms Australia Data Team <$NOTIFY_EMAIL>
+	Subject: Dataset $TRANSFER_NAME uploaded to Cloudstor
+
+	The following dataset has been been uploaded to Cloudstor.
+
+	$TRANSFER_NAME
+
+	It contains the following files:
+
+	$FILELIST
+
+	It can be downloaded from CloudStor with the following rclone command
+END
 # Report to user
