@@ -62,7 +62,26 @@ fi
 
 # (Re) generate rclone config
 
+debug "Script name: $0"
+debug "$# arguments"
+
 # Check number of arguments
+if [ $# -ne 1 ]; then
+	usage "Incorrect number of arguments"
+	exit 1
+fi
+
+# It should be a directory
+
+TRANSFER_FOLDER=$1
+
+if [ ! -d "$TRANSFER_FOLDER" ]; then
+	usage "Argument must be a directory"
+	exit 1
+fi
+
+TRANSFER_NAME=`basename $TRANSFER_FOLDER`
+
 
 # Check argument is directory
 
