@@ -104,24 +104,24 @@ fi
 
 # Check argument is directory
 
-TRANSFER_FOLDER=$1
+TXFR_FOLDER=$1
 
-if [ ! -d "$TRANSFER_FOLDER" ]; then
+if [ ! -d "$TXFR_FOLDER" ]; then
 	usage "Argument must be a directory"
 	exit 1
 fi
 
-TRANSFER_NAME=`basename $TRANSFER_FOLDER`
+TXFR_NAME=`basename $TXFR_FOLDER`
 
 # Check directory is named correctly
 # In the format - 20201202_TESTPROJ_TESTFACILITY_ABCD1234
 # =~ operator is a bashism
 
-if [[ ! $TRANSFER_NAME =~ ^[0-9]{8}_[A-Za-z]+_[A-Za-z]+_[A-Za-z0-9]{8}$ ]]; then
+if [[ ! $TXFR_NAME =~ ^[0-9]{8}_[A-Za-z]+_[A-Za-z]+_[A-Za-z0-9]{8}$ ]]; then
 	usage "Directory must be named correctly <datestamp>_<project>_<facility>_<flowcell ID>"
 	exit 1
 else
-	debug "Directory $TRANSFER_NAME meets criteria"
+	debug "Directory $TXFR_NAME meets criteria"
 fi
 
 # (Re) generate rclone config
@@ -134,24 +134,36 @@ rclone config create bpa-cloudstor-transfer webdav \
 	pass "$CLOUDSTOR_APP_PASSWORD"
 debug "Created rclone configuration"
 
+# Check if password is an app password.  If not, output a warning
+
 # Test if folder is present on CloudStor
 
 # Test if we've got enough space on CloudStor
+
+# Get size of directory we are transferring
+TXFR_SIZE=$(du -sb "$TXFR_FOLDER" | awk '{print $1}')
+info "Need to transfer $TXFR_SIZE bytes from $TXFR_FOLDER"
+
+# Get total space on CloudStor
+# Get used space on CloudStor
+# Calculate remaining space
+
+# Compare to see if we've got enough space left to transfer this
 
 # Rclone to folder on CloudStor
 
 # Use owncloud API to share to BPA CloudStor address
 
 # Generate email to notification email address
-FILELIST=$(find $TRANSFER_FOLDER)
+FILELIST=$(find $TXFR_FOLDER)
 
 $SENDMAIL $NOTIFY_EMAIL <<- END
 	To: Bioplatforms Australia Data Team <$NOTIFY_EMAIL>
-	Subject: Dataset $TRANSFER_NAME uploaded to Cloudstor
+	Subject: Dataset $TXFR_NAME uploaded to Cloudstor
 
 	The following dataset has been been uploaded to Cloudstor.
 
-	$TRANSFER_NAME
+	$TXFR_NAME
 
 	It contains the following files:
 
@@ -166,3 +178,5 @@ if [ ${CLEANUPCONFIG} -eq 1 ]; then
 fi
 
 # Report to user
+
+info "Notification email sent to $NOTIFY_EMAIL"
