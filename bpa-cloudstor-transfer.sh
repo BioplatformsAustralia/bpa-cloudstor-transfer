@@ -4,6 +4,14 @@
 
 # Usage: bpa-cloudstor-transfer.sh <folder-to-transfer>
 
+# Don't forget to run shellcheck (https://github.com/koalaman/shellcheck) after making edits.
+
+# keep track of the last executed command
+trap 'last_command=$current_command; current_command=$BASH_COMMAND' DEBUG
+# echo an error message before exiting
+trap 'echo "\"${last_command}\" command failed with exit code $?."' EXIT
+set -euo pipefail
+
 # Internal script configuation
 VERSIONCHECK="${VERSIONCHECK:=1}"
 CLEANUPCONFIG="${CLEANUPCONFIG:=1}"
@@ -17,6 +25,23 @@ CLEANUPCONFIG="${CLEANUPCONFIG:=1}"
 # - Notification email address (help@bioplatforms.com)
 NOTIFY_EMAIL="${NOTIFY_EMAIL:=mark.tearle@qcif.edu.au}"
 SENDMAIL="${SENDMAIL:=/usr/sbin/sendmail}"
+
+# CTC settings
+
+#default values
+BACKLOG=36
+CHECK=1
+CHECKERS=36
+EXTRAVARS=0
+HELP=0
+PUSHFIRST=0
+VERSIONCHECK=1
+SHOWDIFF=""
+TIMEOUT=0
+TRANSFERS=6
+# Do the transfer with these settings (from copyToCloudStor.sh)
+PUSHFIRST=1
+CHECK=0
 
 # Logging functions
 function warn {
@@ -92,6 +117,15 @@ else
     debug "sendmail found"
 fi
 
+# Check we've got curl installed
+if ! command -v curl &> /dev/null
+then
+    warn "curl not found"
+    warn "Install curl as appropriate for your environment"
+    exit 1
+else
+    debug "curl found"
+fi
 
 debug "Script name: $0"
 debug "$# arguments"
@@ -136,7 +170,21 @@ debug "Created rclone configuration"
 
 # Check if password is an app password.  If not, output a warning
 
-# Test if folder is present on CloudStor
+# Test if folder is present on CloudStor.  If not, create?
+
+if [ \
+	curl -u "$CLOUDSTOR_LOGIN:$CLOUDSTOR_APP_PASSWORD" \
+	-f -s -I --head \
+	"$CLOUDSTOR_URL/$TXFR_NAME" \
+   ]; then
+	# not there, create
+	info "Creating folder $TXFR_NAME"
+	curl -u "$CLOUDSTOR_LOGIN:$CLOUDSTOR_APP_PASSWORD" \
+		-X MKCOL \
+		"$CLOUDSTOR_URL/$TXFR_NAME"
+else 
+	info "Folder $TXFR_NAME present"
+fi
 
 # Test if we've got enough space on CloudStor
 
@@ -145,12 +193,55 @@ TXFR_SIZE=$(du -sb "$TXFR_FOLDER" | awk '{print $1}')
 info "Need to transfer $TXFR_SIZE bytes from $TXFR_FOLDER"
 
 # Get total space on CloudStor
+
+# FIXME: Need info from AARNet
+
 # Get used space on CloudStor
+
+# FIXME: Need info from AARNet
+
 # Calculate remaining space
+
+# FIXME: Need info from AARNet
 
 # Compare to see if we've got enough space left to transfer this
 
+info "FIXME: Currently crossing fingers that we have enough space for the transfer"
+
 # Rclone to folder on CloudStor
+# Logic/etc from copyToCloudstor.sh
+
+
+
+destination="bpa-cloudstor-transfer:$TXFR_NAME"
+
+#Do the transfer
+SECONDS=0
+source_absolute_path=$(readlink -m "$TXFR_FOLDER")
+
+rcloneoptions="--transfers ${TRANSFERS} --checkers ${CHECKERS} --timeout ${TIMEOUT} --max-backlog ${BACKLOG}"
+
+echo "Copying ${source_absolute_path} to ${destination}. Starting at $(date)"
+
+counter=1
+if [ ${PUSHFIRST} -eq 1 ] || [ ${CHECK} -eq 0 ]; then
+	echo "Starting run ${counter} at $(date) without checks"
+	rclone copy --progress --no-check-dest --no-traverse ${rcloneoptions} "${source_absolute_path}" "${destination}"
+	echo "Done with run ${counter} at $(date)"
+	counter=$((counter+1))
+	CHECK=1
+fi
+if [ ${CHECK} -eq 1 ]; then
+	while ! rclone check --one-way ${SHOWDIFF} ${rcloneoptions} "${source_absolute_path}" "${destination}" 2>&1 | tee /dev/stderr | grep ': 0 differences found'; do
+		echo "Starting run ${counter} at $(date)"
+		rclone copy --progress "${rcloneoptions}" "${source_absolute_path}" "${destination}"
+		echo "Done with run ${counter} at $(date)"
+		counter=$((counter+1))
+	done
+fi
+
+duration=${SECONDS}
+echo "Copied '${source_absolute_path}' to '${destination}'. Finished at $(date), in $((duration / 60)) minutes and $((duration % 60)) seconds elapsed."
 
 # Use owncloud API to share to BPA CloudStor address
 
@@ -180,3 +271,8 @@ fi
 # Report to user
 
 info "Notification email sent to $NOTIFY_EMAIL"
+
+trap - DEBUG
+trap - EXIT
+
+info "Complete."
