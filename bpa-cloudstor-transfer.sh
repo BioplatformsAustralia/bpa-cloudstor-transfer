@@ -6,6 +6,7 @@
 
 # Internal script configuation
 VERSIONCHECK="${VERSIONCHECK:=1}"
+CLEANUPCONFIG="${CLEANUPCONFIG:=1}"
 
 # Need the following configuration information from user
 # - User details
@@ -40,6 +41,26 @@ function usage {
 
 # Check we've got config information
 
+if [ -z "$CLOUDSTOR_LOGIN" ]; then
+    warn "Please set CLOUDSTOR_LOGIN environment variable with your Cloudstore username"
+    warn " For example:"
+    warn " export CLOUDSTOR_LOGIN=user@institute.edu.au"
+    exit 1
+else
+    debug "Login $CLOUDSTOR_LOGIN found"
+fi
+
+if [ -z "$CLOUDSTOR_APP_PASSWORD" ]; then
+    warn "Please set CLOUDSTOR_APP_PASSWORD environment variable with your Cloudstore app password"
+    warn " See https://support.aarnet.edu.au/hc/en-us/articles/236034707-How-do-I-manage-change-my-passwords"
+    warn ""
+    warn " For example:"
+    warn "  export CLOUDSTOR_APP_PASSWORD=CREKT-HORSE-BATRY-STAPL"
+    exit 1
+else
+    debug "App password found"
+fi
+
 # Check we've got rclone installed
 
 if ! command -v rclone &> /dev/null
@@ -71,7 +92,6 @@ else
     debug "sendmail found"
 fi
 
-# (Re) generate rclone config
 
 debug "Script name: $0"
 debug "$# arguments"
@@ -104,6 +124,16 @@ else
 	debug "Directory $TRANSFER_NAME meets criteria"
 fi
 
+# (Re) generate rclone config
+
+CLOUDSTOR_URL=https://cloudstor.aarnet.edu.au/plus/remote.php/webdav/
+rclone config create bpa-cloudstor-transfer webdav \
+	url $CLOUDSTOR_URL \
+	vendor owncloud \
+	user "$CLOUDSTOR_LOGIN" \
+	pass "$CLOUDSTOR_APP_PASSWORD"
+debug "Created rclone configuration"
+
 # Test if folder is present on CloudStor
 
 # Test if we've got enough space on CloudStor
@@ -129,4 +159,10 @@ $SENDMAIL $NOTIFY_EMAIL <<- END
 
 	It can be downloaded from CloudStor with the following rclone command
 END
+
+if [ ${CLEANUPCONFIG} -eq 1 ]; then
+	rclone config delete bpa-cloudstor-transfer
+	debug "Removed rclone configuration"
+fi
+
 # Report to user
