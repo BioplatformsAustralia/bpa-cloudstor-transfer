@@ -22,6 +22,7 @@ CLEANUPCONFIG="${CLEANUPCONFIG:=1}"
 
 # - Data age
 # - Destination to share to (ie BPA CloudStor address)
+SHARE_WITH="${SHARE_WITH:=m.tearle@cqu.edu.au@cloudstor.aarnet.edu.au/plus}"
 # - Notification email address (help@bioplatforms.com)
 NOTIFY_EMAIL="${NOTIFY_EMAIL:=mark.tearle@qcif.edu.au}"
 SENDMAIL="${SENDMAIL:=/usr/sbin/sendmail}"
@@ -30,11 +31,9 @@ SENDMAIL="${SENDMAIL:=/usr/sbin/sendmail}"
 
 #default values
 BACKLOG=36
-CHECK=1
 CHECKERS=36
 EXTRAVARS=0
 HELP=0
-PUSHFIRST=0
 VERSIONCHECK=1
 SHOWDIFF=""
 TIMEOUT=0
@@ -42,6 +41,13 @@ TRANSFERS=6
 # Do the transfer with these settings (from copyToCloudStor.sh)
 PUSHFIRST=1
 CHECK=0
+
+# Cloudstor settings
+
+CLOUDSTOR_URL=https://cloudstor.aarnet.edu.au/plus/remote.php/webdav/
+# For FCS
+SERVER_URI=https://cloudstor.aarnet.edu.au/plus
+API_PATH=ocs/v1.php/apps/files_sharing/api/v1/shares
 
 # Logging functions
 function warn {
@@ -160,7 +166,6 @@ fi
 
 # (Re) generate rclone config
 
-CLOUDSTOR_URL=https://cloudstor.aarnet.edu.au/plus/remote.php/webdav/
 rclone config create bpa-cloudstor-transfer webdav \
 	url $CLOUDSTOR_URL \
 	vendor owncloud \
@@ -172,11 +177,10 @@ debug "Created rclone configuration"
 
 # Test if folder is present on CloudStor.  If not, create?
 
-if [ \
-	curl -u "$CLOUDSTOR_LOGIN:$CLOUDSTOR_APP_PASSWORD" \
+if curl -u "$CLOUDSTOR_LOGIN:$CLOUDSTOR_APP_PASSWORD" \
 	-f -s -I --head \
 	"$CLOUDSTOR_URL/$TXFR_NAME" \
-   ]; then
+   ; then
 	# not there, create
 	info "Creating folder $TXFR_NAME"
 	curl -u "$CLOUDSTOR_LOGIN:$CLOUDSTOR_APP_PASSWORD" \
@@ -244,6 +248,18 @@ duration=${SECONDS}
 echo "Copied '${source_absolute_path}' to '${destination}'. Finished at $(date), in $((duration / 60)) minutes and $((duration % 60)) seconds elapsed."
 
 # Use owncloud API to share to BPA CloudStor address
+
+info "Sharing with $SHARE_WITH"
+
+# Create a user share with read permissions
+
+curl -u "$CLOUDSTOR_LOGIN:$CLOUDSTOR_APP_PASSWORD" \
+     "$SERVER_URI/$API_PATH" \
+     --silent \
+     -F "path=/$TXFR_NAME" \
+     -F 'shareType=6' \
+     -F 'permissions=1' \
+     -F "shareWith=$SHARE_WITH"
 
 # Generate email to notification email address
 FILELIST=$(find $TXFR_FOLDER)
