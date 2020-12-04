@@ -37,7 +37,7 @@ HELP=0
 VERSIONCHECK=1
 SHOWDIFF=""
 TIMEOUT=0
-TRANSFERS=6
+TRANSFERS=${TRANSFERS:=2}
 # Do the transfer with these settings (from copyToCloudStor.sh)
 PUSHFIRST=1
 CHECK=0
