@@ -47,7 +47,8 @@ CHECK=0
 CLOUDSTOR_URL=https://cloudstor.aarnet.edu.au/plus/remote.php/webdav/
 # For FCS
 SERVER_URI=https://cloudstor.aarnet.edu.au/plus
-API_PATH=ocs/v1.php/apps/files_sharing/api/v1/shares
+SHARE_API_PATH=ocs/v1.php/apps/files_sharing/api/v1/shares
+QUOTA_API_PATH=ocs/v1.php/cloud/users
 
 # Logging functions
 function warn {
@@ -179,7 +180,10 @@ debug "Created rclone configuration"
 
 if curl -u "$CLOUDSTOR_LOGIN:$CLOUDSTOR_APP_PASSWORD" \
 	-f -s -I --head \
+	--silent \
 	"$CLOUDSTOR_URL/$TXFR_NAME" \
+	1>/dev/null \
+	2>/dev/null \
    ; then
 	info "Folder $TXFR_NAME present"
 	# flip the transfer settings, to sync with a check run
@@ -190,6 +194,7 @@ else
 	info "Creating folder $TXFR_NAME"
 	curl -u "$CLOUDSTOR_LOGIN:$CLOUDSTOR_APP_PASSWORD" \
 		-X MKCOL \
+		--silent \
 		"$CLOUDSTOR_URL/$TXFR_NAME"
 fi
 
@@ -201,17 +206,38 @@ info "Need to transfer $TXFR_SIZE bytes from $TXFR_FOLDER"
 
 # Get total space on CloudStor
 
-# FIXME: Need info from AARNet
+#   <free>1096502133013</free>
+#   <used>3009494763</used>
+#   <total>1099511627776</total>
+
+
+quotainfo=$(curl -u "$CLOUDSTOR_LOGIN:$CLOUDSTOR_APP_PASSWORD" \
+	--silent \
+	"$SERVER_URI/$QUOTA_API_PATH/$CLOUDSTOR_LOGIN")
 
 # Get used space on CloudStor
 
-# FIXME: Need info from AARNet
+total_space=$(echo "$quotainfo" | grep -oPm1 "(?<=<total>)[^<]+")
+
+# Get used space on CloudStor
+
+used_space=$(echo "$quotainfo" | grep -oPm1 "(?<=<used>)[^<]+")
 
 # Calculate remaining space
 
-# FIXME: Need info from AARNet
+free_space=$(echo "$quotainfo" | grep -oPm1 "(?<=<free>)[^<]+")
+
+info "$used_space bytes used from total $total_space, $free_space bytes free"
 
 # Compare to see if we've got enough space left to transfer this
+
+if [ $free_space -lt $TXFR_SIZE ] ; then
+	warn "Not enough space for transferring, quiting"
+	warn "Need $TXFR_SIZE bytes, have $free_space bytes"
+	exit 1
+else
+	info "Need $TXFR_SIZE bytes, have $free_space bytes, proceeding"
+fi
 
 info "FIXME: Currently crossing fingers that we have enough space for the transfer"
 
@@ -257,7 +283,7 @@ info "Sharing with $SHARE_WITH"
 # Create a user share with read permissions
 
 curl -u "$CLOUDSTOR_LOGIN:$CLOUDSTOR_APP_PASSWORD" \
-     "$SERVER_URI/$API_PATH" \
+     "$SERVER_URI/$SHARE_API_PATH" \
      --silent \
      -F "path=/$TXFR_NAME" \
      -F 'shareType=6' \
