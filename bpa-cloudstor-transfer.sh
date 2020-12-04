@@ -282,13 +282,25 @@ info "Sharing with $SHARE_WITH"
 
 # Create a user share with read permissions
 
-curl -u "$CLOUDSTOR_LOGIN:$CLOUDSTOR_APP_PASSWORD" \
+sharing=$(curl -u "$CLOUDSTOR_LOGIN:$CLOUDSTOR_APP_PASSWORD" \
      "$SERVER_URI/$SHARE_API_PATH" \
      --silent \
      -F "path=/$TXFR_NAME" \
      -F 'shareType=6' \
      -F 'permissions=1' \
-     -F "shareWith=$SHARE_WITH"
+     -F "shareWith=$SHARE_WITH")
+
+sharing_status=$(echo "$sharing" | grep -oPm1 "(?<=<status>)[^<]+")
+
+if [ $sharing_status == "ok" ] ; then
+	info "Shared sucessfully...."
+elif echo "$sharing" | grep "already shared" >/dev/null ; then
+	info "Already shared"
+	debug "$sharing"
+else
+	debug "Sharing issue"
+	debug "$sharing"
+fi
 
 # Generate email to notification email address
 FILELIST=$(find $TXFR_FOLDER)
