@@ -181,13 +181,16 @@ if curl -u "$CLOUDSTOR_LOGIN:$CLOUDSTOR_APP_PASSWORD" \
 	-f -s -I --head \
 	"$CLOUDSTOR_URL/$TXFR_NAME" \
    ; then
+	info "Folder $TXFR_NAME present"
+	# flip the transfer settings, to sync with a check run
+	PUSHFIRST=0
+	CHECK=1
+else
 	# not there, create
 	info "Creating folder $TXFR_NAME"
 	curl -u "$CLOUDSTOR_LOGIN:$CLOUDSTOR_APP_PASSWORD" \
 		-X MKCOL \
 		"$CLOUDSTOR_URL/$TXFR_NAME"
-else 
-	info "Folder $TXFR_NAME present"
 fi
 
 # Test if we've got enough space on CloudStor
@@ -230,7 +233,7 @@ echo "Copying ${source_absolute_path} to ${destination}. Starting at $(date)"
 counter=1
 if [ ${PUSHFIRST} -eq 1 ] || [ ${CHECK} -eq 0 ]; then
 	echo "Starting run ${counter} at $(date) without checks"
-	rclone copy --progress --no-check-dest --no-traverse ${rcloneoptions} "${source_absolute_path}" "${destination}"
+	rclone copy --progress --no-check-dest --no-traverse ${rcloneoptions} "${source_absolute_path}" "${destination}" || true
 	echo "Done with run ${counter} at $(date)"
 	counter=$((counter+1))
 	CHECK=1
@@ -238,7 +241,7 @@ fi
 if [ ${CHECK} -eq 1 ]; then
 	while ! rclone check --one-way ${SHOWDIFF} ${rcloneoptions} "${source_absolute_path}" "${destination}" 2>&1 | tee /dev/stderr | grep ': 0 differences found'; do
 		echo "Starting run ${counter} at $(date)"
-		rclone copy --progress "${rcloneoptions}" "${source_absolute_path}" "${destination}"
+		rclone copy --progress ${rcloneoptions} "${source_absolute_path}" "${destination}"
 		echo "Done with run ${counter} at $(date)"
 		counter=$((counter+1))
 	done
