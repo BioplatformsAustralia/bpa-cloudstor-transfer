@@ -18,6 +18,8 @@ CLEANUPCONFIG="${CLEANUPCONFIG:=1}"
 
 # Need the following configuration information from user
 # - User details
+CLOUDSTOR_LOGIN="${CLOUDSTOR_LOGIN:=}"
+CLOUDSTOR_APP_PASSWORD="${CLOUDSTOR_APP_PASSWORD:=}"
 # - App password
 
 # - Data age
